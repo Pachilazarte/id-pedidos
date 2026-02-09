@@ -1,0 +1,1468 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sistema de Pedidos - Automatización</title>
+
+  <link rel="icon" type="image/png" href="./img/favicon.png" sizes="32x32">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --c-black: #000000;
+      --c-ink: #1a181d;
+      --c-white: #fefeff;
+      --c-pink: #e17bd7;
+      --c-cyan: #6be1e3;
+      --c-gold: #e4c76a;
+      --c-slate: #a4a8c0;
+      --c-mist: #c6c9d7;
+      --font-title: "Exo 2", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      --font-sub: "Futura", "Futura PT", "Avenir", "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+      --container: 1400px;
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --shadow-soft: 0 18px 60px rgba(0,0,0,.55);
+      --glass: rgba(254,254,255,.08);
+      --stroke: rgba(198,201,215,.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      height: 100%;
+      scrollbar-width: thin;
+      scrollbar-color: var(--c-pink) var(--c-black);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--c-black);
+      color: var(--c-white);
+      font-family: var(--font-sub);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: 
+        radial-gradient(1200px 700px at 70% 25%, rgba(225,123,215,.18), transparent 55%),
+        radial-gradient(1100px 700px at 80% 60%, rgba(107,225,227,.14), transparent 55%),
+        radial-gradient(900px 600px at 20% 70%, rgba(228,199,106,.10), transparent 60%),
+        linear-gradient(180deg, var(--c-black), var(--c-ink));
+    }
+
+    .bg::before {
+      content: "";
+      position: absolute;
+      inset: -10%;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(107,225,227,.12), transparent 40%),
+        radial-gradient(circle at 80% 35%, rgba(225,123,215,.12), transparent 38%),
+        radial-gradient(circle at 55% 85%, rgba(228,199,106,.10), transparent 45%);
+      filter: blur(18px);
+      opacity: .95;
+    }
+
+    .hex {
+      position: absolute;
+      inset: -20%;
+      opacity: .16;
+      filter: drop-shadow(0 0 12px rgba(107,225,227,.15));
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='150'%3E%3Cg fill='none' stroke='%23c6c9d7' stroke-opacity='0.85' stroke-width='1'%3E%3Cpath d='M50 20l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M120 20l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M190 20l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M85 55l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M155 55l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M50 90l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M120 90l20-12 20 12v24l-20 12-20-12z'/%3E%3Cpath d='M190 90l20-12 20 12v24l-20 12-20-12z'/%3E%3C/g%3E%3C/svg%3E");
+      background-size: 260px 150px;
+      transform: rotate(-8deg);
+      mix-blend-mode: screen;
+    }
+
+    canvas#stars { position: absolute; inset: 0; }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      padding: 26px 22px 8px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: linear-gradient(180deg, rgba(0,0,0,.35), transparent);
+      backdrop-filter: blur(10px);
+    }
+
+    header.scrolled {
+      background: rgba(0,0,0,.7);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      border-bottom: 1px solid rgba(198,201,215,.10);
+    }
+
+    .nav {
+      max-width: var(--container);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      user-select: none;
+    }
+
+    .brand .mark {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-image: url('./img/one-iconocolor.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      box-shadow: 0 0 0 1px rgba(198,201,215,.18), 0 0 40px rgba(107,225,227,.18);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .brand .mark::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(254,254,255,.14), transparent 55%);
+      pointer-events: none;
+    }
+
+    .brand .name {
+      font-family: var(--font-title);
+      letter-spacing: .04em;
+      font-weight: 800;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .brand .sub {
+      display: block;
+      font-family: var(--font-sub);
+      font-weight: 500;
+      font-size: 13px;
+      color: rgba(198,201,215,.85);
+      letter-spacing: .02em;
+      margin-top: 2px;
+    }
+
+    .mode-toggle {
+      display: flex;
+      gap: 12px;
+    }
+
+    .mode-btn {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      color: var(--c-white);
+      padding: 12px 24px;
+      font-family: var(--font-title);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 999px;
+      transition: all 0.3s;
+      letter-spacing: .05em;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--c-gold), rgba(228,199,106,.8));
+      color: var(--c-black);
+      border-color: var(--c-gold);
+      box-shadow: 0 10px 30px rgba(228,199,106,.4);
+    }
+
+    .mode-btn:hover {
+      transform: translateY(-2px);
+      border-color: var(--c-gold);
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      padding: 40px 30px 100px;
+    }
+
+    .container {
+      max-width: var(--container);
+      margin: 0 auto;
+    }
+
+    .mode-section {
+      display: none;
+    }
+
+    .mode-section.active {
+      display: block;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-header h1 {
+      font-family: var(--font-title);
+      font-size: clamp(42px, 5vw, 62px);
+      line-height: 1.1;
+      margin: 0 0 20px;
+      letter-spacing: -.02em;
+      font-style: italic;
+      background: linear-gradient(90deg, var(--c-gold), var(--c-pink));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .section-header .subtitle {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--c-mist);
+      font-weight: 600;
+    }
+
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 40px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--c-gold);
+      font-weight: 700;
+      font-family: var(--font-title);
+    }
+
+    .required::after {
+      content: " *";
+      color: var(--c-pink);
+    }
+
+    input, select, textarea {
+      background: rgba(0,0,0,.3);
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: var(--c-white);
+      font-family: var(--font-sub);
+      font-size: 15px;
+      transition: all 0.3s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--c-cyan);
+      box-shadow: 0 0 0 3px rgba(107,225,227,.15);
+      background: rgba(0,0,0,.4);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-family: var(--font-sub);
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .info-text {
+      font-size: 12px;
+      color: var(--c-slate);
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--c-gold), var(--c-pink));
+      color: var(--c-white);
+      padding: 16px 40px;
+      border: none;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 10px 30px rgba(228,199,106,.4);
+      font-family: var(--font-title);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 50px rgba(228,199,106,.6);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--glass);
+      border: 1px solid var(--c-cyan);
+      color: var(--c-cyan);
+      box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(107,225,227,.15);
+      box-shadow: 0 10px 30px rgba(107,225,227,.3);
+    }
+
+    .alert {
+      padding: 18px 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 15px;
+      border-left: 4px solid;
+      animation: slideIn 0.4s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .alert-success {
+      background: rgba(107,225,227,.15);
+      border-color: var(--c-cyan);
+      color: var(--c-cyan);
+    }
+
+    .alert-error {
+      background: rgba(225,123,215,.15);
+      border-color: var(--c-pink);
+      color: var(--c-pink);
+    }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,.4);
+      border-color: var(--c-gold);
+    }
+
+    .stat-number {
+      font-size: 48px;
+      font-weight: 800;
+      font-family: var(--font-title);
+      background: linear-gradient(135deg, var(--c-gold), var(--c-cyan));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--c-mist);
+      font-weight: 600;
+    }
+
+    /* FILTROS */
+    .filters {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 32px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      backdrop-filter: blur(10px);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .filter-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--c-gold);
+      font-weight: 700;
+      letter-spacing: .1em;
+    }
+
+    /* TABLA */
+    .tickets-table {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .tickets-table::-webkit-scrollbar {
+      height: 12px;
+    }
+
+    .tickets-table::-webkit-scrollbar-track {
+      background: rgba(0,0,0,.3);
+      border-radius: 8px;
+    }
+
+    .tickets-table::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, var(--c-gold), var(--c-pink));
+      border-radius: 8px;
+    }
+
+    .tickets-table::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(135deg, var(--c-pink), var(--c-cyan));
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 2200px; /* Asegurar scroll horizontal con todas las columnas */
+    }
+
+    thead {
+      background: rgba(0,0,0,.5);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    th {
+      padding: 18px 16px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--c-gold);
+      border-bottom: 2px solid var(--stroke);
+      font-weight: 700;
+      font-family: var(--font-title);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(198,201,215,.08);
+      font-size: 14px;
+      color: var(--c-mist);
+    }
+
+    tbody tr {
+      transition: all 0.2s;
+    }
+
+    tbody tr:hover {
+      background: rgba(228,199,106,.08);
+    }
+
+    .ticket-number-cell {
+      font-weight: 700;
+      color: var(--c-cyan);
+      font-family: var(--font-title);
+    }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-family: var(--font-title);
+    }
+
+    .priority-5 { background: rgba(225,123,215,.9); color: white; }
+    .priority-4 { background: rgba(228,199,106,.9); color: var(--c-black); }
+    .priority-3 { background: rgba(107,225,227,.9); color: var(--c-black); }
+    .priority-2 { background: rgba(164,168,192,.7); color: white; }
+    .priority-1 { background: rgba(164,168,192,.4); color: white; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(198,201,215,.2);
+      color: var(--c-white);
+      font-family: var(--font-title);
+    }
+
+    .urgencia-badge {
+      font-size: 18px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 40px;
+      color: var(--c-slate);
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 60px;
+      color: var(--c-cyan);
+    }
+
+    .loading.active {
+      display: block;
+    }
+
+    .spinner {
+      border: 4px solid rgba(198,201,215,.2);
+      border-top: 4px solid var(--c-cyan);
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* TICKET PREVIEW */
+    .ticket-preview {
+      background: var(--c-white);
+      color: var(--c-black);
+      padding: 40px;
+      border-radius: var(--radius-lg);
+      margin-top: 40px;
+      display: none;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    }
+
+    .ticket-preview.show {
+      display: block;
+      animation: slideIn 0.4s ease;
+    }
+
+    .ticket-header {
+      border-bottom: 3px solid var(--c-black);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    .ticket-title {
+      font-family: var(--font-title);
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .ticket-number {
+      font-size: 14px;
+      color: #666;
+      font-weight: 600;
+    }
+
+    .ticket-body {
+      display: grid;
+      gap: 16px;
+    }
+
+    .ticket-field {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 20px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .ticket-label {
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #666;
+      font-family: var(--font-title);
+    }
+
+    .ticket-value {
+      font-size: 14px;
+      color: #000;
+    }
+
+    .cell-wrap {
+      max-width: 250px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: help;
+    }
+
+    .cell-wrap:hover {
+      white-space: normal;
+      word-break: break-word;
+      max-width: none;
+      position: relative;
+      z-index: 100;
+      background: rgba(0,0,0,.9);
+      padding: 16px !important;
+      box-shadow: 0 10px 30px rgba(0,0,0,.5);
+      border-radius: 8px;
+    }
+
+    @media (max-width: 968px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .mode-toggle {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .nav {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 12px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg">
+    <div class="hex"></div>
+    <canvas id="stars"></canvas>
+  </div>
+
+  <div class="wrap">
+    <header id="header">
+      <nav class="nav">
+        <div class="brand">
+          <div class="mark"></div>
+          <div>
+            <div class="name">Sistema de Tickets</div>
+            <span class="sub">Automatización & Desarrollo</span>
+          </div>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" onclick="cambiarModo('usuario')">👤 Modo Usuario</button>
+          <button class="mode-btn" onclick="cambiarModo('admin')">🔧 Panel Admin</button>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <div class="container">
+        <!-- ============================================ -->
+        <!-- MODO USUARIO: CREAR TICKETS -->
+        <!-- ============================================ -->
+        <div id="modoUsuario" class="mode-section active">
+          <div class="section-header">
+            <h1>Crear Nuevo Ticket</h1>
+            <div class="subtitle">Gestión de Solicitudes</div>
+          </div>
+
+          <div id="alertContainer"></div>
+
+          <div class="card">
+            <form id="ticketForm">
+              <div class="form-grid">
+                <!-- Solicitante -->
+                <div class="form-group">
+                  <label class="form-label required">Solicitante</label>
+                  <select id="solicitante" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Maria Laura Colque">Maria Laura Colque</option>
+                    <option value="Fabiana Ferreyra">Fabiana Ferreyra</option>
+                    <option value="Consultoria">Consultoría</option>
+                    <option value="Area de Administracion">Área de Administración</option>
+                    <option value="Area de RRHH">Área de RRHH</option>
+                    <option value="Area de Marketing">Área de Marketing</option>
+                    <option value="Area Comercial">Área Comercial</option>
+                    <option value="Area IN">Área IN</option>
+                    <option value="Area de Innovacion & Desarrollo">Área de Innovación & Desarrollo</option>
+                  </select>
+                </div>
+
+                <!-- Tipo de Servicio -->
+                <div class="form-group">
+                  <label class="form-label required">Tipo de Servicio</label>
+                  <select id="tipoServicio" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Automatización">Automatización</option>
+                    <option value="Desarrollo de Programas">Desarrollo de Programas</option>
+                    <option value="Consultoría Técnica">Consultoría Técnica</option>
+                    <option value="Gestión de Datos">Gestión de Datos</option>
+                    <option value="Integración de Sistemas">Integración de Sistemas</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <!-- Título -->
+                <div class="form-group">
+                  <label class="form-label required">Título del Requerimiento</label>
+                  <input type="text" id="titulo" required placeholder="Ej: Automatizar proceso de facturación">
+                </div>
+
+                <!-- Urgencia Real -->
+                <div class="form-group">
+                  <label class="form-label required">Urgencia Real</label>
+                  <select id="urgencia" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="5">🔴 Crítico - Operación Detenida (Bloqueante)</option>
+                    <option value="4">🟠 Urgente - Fecha Límite Legal/Externa</option>
+                    <option value="3">🟡 Necesario - Mejora con Plazo Definido</option>
+                    <option value="2">🔵 Importante - Optimización Planificada</option>
+                    <option value="1">⚪ Opcional - Mejora Sin Urgencia</option>
+                  </select>
+                  <div class="info-text">Esta urgencia será evaluada técnicamente por el equipo</div>
+                </div>
+
+                <!-- Brief del Proceso Actual -->
+                <div class="form-group">
+                  <label class="form-label required">Descripción del Proceso Actual</label>
+                  <textarea id="procesoActual" required placeholder="Describe paso a paso cómo se realiza actualmente el proceso..."></textarea>
+                  <div class="info-text">Cuanto más detalle, mejor será la solución</div>
+                </div>
+
+                <!-- Resultado Esperado -->
+                <div class="form-group">
+                  <label class="form-label required">Resultado Esperado</label>
+                  <textarea id="resultadoEsperado" required placeholder="¿Qué debe hacer la solución? ¿Cómo sabrás que está terminada?"></textarea>
+                </div>
+
+                <div class="grid-2">
+                  <!-- Impacto -->
+                  <div class="form-group">
+                    <label class="form-label required">Impacto Estimado</label>
+                    <select id="impacto" required>
+                      <option value="">Seleccionar...</option>
+                      <option value="1-5 personas">1-5 personas</option>
+                      <option value="6-15 personas">6-15 personas</option>
+                      <option value="16-50 personas">16-50 personas</option>
+                      <option value="Toda la organización">Toda la organización</option>
+                    </select>
+                  </div>
+
+                  <!-- Horas Ahorradas -->
+                  <div class="form-group">
+                    <label class="form-label">Horas Manuales que se Pierden (semanal)</label>
+                    <input type="number" id="horasAhorradas" min="0" step="0.5" placeholder="Ej: 5.5">
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <!-- Fecha Límite Deseada -->
+                  <div class="form-group">
+                    <label class="form-label">Fecha Límite Deseada</label>
+                    <input type="date" id="fechaDeseada">
+                  </div>
+
+                  <!-- Estado -->
+                  <div class="form-group">
+                    <label class="form-label">Estado Inicial</label>
+                    <input type="text" id="estado" value="Backlog" readonly style="opacity: 0.6;">
+                  </div>
+                </div>
+
+                <!-- Comentarios -->
+                <div class="form-group">
+                  <label class="form-label">Comentarios Adicionales</label>
+                  <textarea id="comentarios" rows="3" placeholder="Cualquier información adicional..."></textarea>
+                </div>
+              </div>
+
+              <div class="button-group">
+                <button type="submit" class="btn">✨ Crear Ticket</button>
+                <button type="button" class="btn btn-secondary" id="resetBtn">🔄 Limpiar Formulario</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Procesando ticket...</div>
+          </div>
+
+          <!-- Vista Previa del Ticket -->
+          <div class="ticket-preview" id="ticketPreview">
+            <div class="ticket-header">
+              <div class="ticket-title">Ticket de Solicitud</div>
+              <div class="ticket-number" id="ticketNumber"></div>
+            </div>
+            <div class="ticket-body" id="ticketBody"></div>
+            <div class="button-group" style="margin-top: 32px;">
+              <button class="btn" id="downloadPDF">📄 Descargar PDF</button>
+              <button class="btn btn-secondary" id="closePreview">✕ Cerrar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- MODO ADMINISTRADOR: VER Pedidos -->
+        <!-- ============================================ -->
+        <div id="modoAdmin" class="mode-section">
+          <div class="section-header">
+            <h1>Panel de Administración</h1>
+            <div class="subtitle">Gestión de Pedidos</div>
+          </div>
+
+          <!-- Estadísticas -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="totalTickets">-</div>
+              <div class="stat-label">Total Pedidos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="criticalTickets">-</div>
+              <div class="stat-label">Críticos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="backlogTickets">-</div>
+              <div class="stat-label">En Backlog</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="avgHours">-</div>
+              <div class="stat-label">Hrs Promedio</div>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="filters">
+            <div class="filter-group">
+              <label class="filter-label">Estado</label>
+              <select id="filterEstado">
+                <option value="">Todos</option>
+                <option value="Backlog">Backlog</option>
+                <option value="En Análisis">En Análisis</option>
+                <option value="Desarrollo">Desarrollo</option>
+                <option value="QA">QA</option>
+                <option value="Finalizado">Finalizado</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Prioridad</label>
+              <select id="filterPrioridad">
+                <option value="">Todas</option>
+                <option value="CRÍTICA">Crítica</option>
+                <option value="ALTA">Alta</option>
+                <option value="MEDIA">Media</option>
+                <option value="BAJA">Baja</option>
+                <option value="MUY BAJA">Muy Baja</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Solicitante</label>
+              <select id="filterSolicitante">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <button class="btn" onclick="aplicarFiltros()" style="align-self: flex-end;">🔍 Filtrar</button>
+            <button class="btn btn-secondary" onclick="cargarTicketsAdmin()" style="align-self: flex-end;">🔄 Actualizar</button>
+          </div>
+
+          <!-- Tabla de Tickets -->
+          <div style="text-align: center; margin-bottom: 16px; color: var(--c-slate); font-size: 13px;">
+            ⬅️ Desliza horizontalmente para ver todas las columnas ➡️
+          </div>
+          <div class="tickets-table">
+            <div class="loading" id="loadingAdmin">
+              <div class="spinner"></div>
+              <div>Cargando tickets...</div>
+            </div>
+            <div id="ticketsContainer"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ==========================================
+    // CONFIGURACIÓN
+    // ==========================================
+    const GS_WRITE_URL = 'https://script.google.com/macros/s/AKfycbzjjaDHqJHU3LHjxqcjxCKd7U1Z02Wbdgb2GgmAgh2t8NBzedMsyzd8u2IFMNEFTwJm/exec';
+    const GS_READ_URL = 'https://script.google.com/macros/s/AKfycbyDroUqgImsTyXA1EcS-O4MgliuY1yxs7x5xCqlkA6PgF1VcqXgVn1fFVWXOlkkoDGlCA/exec';
+
+    let allTickets = [];
+    let filteredTickets = [];
+    let currentTicketData = null;
+
+    // Header scroll effect
+    window.addEventListener('scroll', () => {
+      const header = document.getElementById('header');
+      if (window.scrollY > 50) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // ==========================================
+    // STARS CANVAS
+    // ==========================================
+    const canvas = document.getElementById('stars');
+    if(canvas) {
+      const ctx = canvas.getContext('2d');
+      let W, H;
+      const resize = () => { W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; };
+      window.addEventListener('resize', resize); 
+      resize();
+      const stars = Array.from({length: 100}, () => ({
+        x: Math.random() * W, 
+        y: Math.random() * H, 
+        r: Math.random() * 1.5
+      }));
+      function draw(){
+        ctx.clearRect(0,0,W,H); 
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        stars.forEach(s => { 
+          ctx.beginPath(); 
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); 
+          ctx.fill(); 
+        });
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // ==========================================
+    // CAMBIAR ENTRE MODOS
+    // ==========================================
+    function cambiarModo(modo) {
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('modoUsuario').classList.remove('active');
+      document.getElementById('modoAdmin').classList.remove('active');
+
+      if (modo === 'usuario') {
+        document.getElementById('modoUsuario').classList.add('active');
+      } else {
+        document.getElementById('modoAdmin').classList.add('active');
+        cargarTicketsAdmin();
+      }
+    }
+
+    // ==========================================
+    // UTILIDADES
+    // ==========================================
+    function showAlert(message, type = 'success') {
+      const alertContainer = document.getElementById('alertContainer');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+      alertContainer.appendChild(alert);
+      setTimeout(() => alert.remove(), 5000);
+    }
+
+    function formatDate(date) {
+      return new Date(date).toLocaleDateString('es-AR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function generateTicketNumber() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const random = Math.floor(Math.random() * 9000) + 1000;
+      return `TKT-${year}${month}${day}-${random}`;
+    }
+
+    function calcularPrioridadAutomatica(solicitante, urgencia) {
+      const prioritarios = ['Maria Laura Colque', 'Fabiana Ferreyra', 'Consultoria'];
+      if (urgencia === '5') return 5;
+      if (prioritarios.includes(solicitante)) return Math.max(4, parseInt(urgencia));
+      return parseInt(urgencia);
+    }
+
+    function getPriorityLabel(priority) {
+      const labels = { 5: 'CRÍTICA', 4: 'ALTA', 3: 'MEDIA', 2: 'BAJA', 1: 'MUY BAJA' };
+      return labels[priority] || 'MEDIA';
+    }
+
+    function getUrgenciaEmoji(urgencia) {
+      const emojis = { '5': '🔴', '4': '🟠', '3': '🟡', '2': '🔵', '1': '⚪' };
+      return emojis[urgencia] || '⚪';
+    }
+
+    // ==========================================
+    // ENVÍO A GOOGLE SHEETS
+    // ==========================================
+    async function enviarAGoogleSheets(ticketData) {
+      try {
+        const fila = [
+          ticketData.fecha_solicitud,
+          ticketData.nombre,
+          ticketData.prioridad,
+          ticketData.pedido,
+          ticketData.comentario,
+          ticketData.tipo_servicio,
+          ticketData.urgencia_declarada,
+          ticketData.proceso_actual,
+          ticketData.resultado_esperado,
+          ticketData.impacto,
+          ticketData.horas_ahorradas,
+          ticketData.fecha_limite,
+          ticketData.estado,
+          ticketData.ticket_number
+        ];
+
+        await fetch(GS_WRITE_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombreHoja: "Respuestas", fila: fila })
+        });
+        
+        return true;
+      } catch (error) {
+        console.error('Error enviando a Google Sheets:', error);
+        throw error;
+      }
+    }
+
+    // ==========================================
+    // FORMULARIO
+    // ==========================================
+    document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const loading = document.getElementById('loading');
+      loading.classList.add('active');
+
+      try {
+        const solicitante = document.getElementById('solicitante').value;
+        const urgencia = document.getElementById('urgencia').value;
+        const prioridadTecnica = calcularPrioridadAutomatica(solicitante, urgencia);
+        const ticketNumber = generateTicketNumber();
+        const fechaSolicitud = new Date().toISOString();
+
+        const ticketData = {
+          ticket_number: ticketNumber,
+          fecha_solicitud: formatDate(fechaSolicitud),
+          nombre: solicitante,
+          prioridad: getPriorityLabel(prioridadTecnica),
+          pedido: document.getElementById('titulo').value,
+          comentario: document.getElementById('comentarios').value || 'Sin comentarios',
+          tipo_servicio: document.getElementById('tipoServicio').value,
+          urgencia_declarada: urgencia,
+          proceso_actual: document.getElementById('procesoActual').value,
+          resultado_esperado: document.getElementById('resultadoEsperado').value,
+          impacto: document.getElementById('impacto').value,
+          horas_ahorradas: document.getElementById('horasAhorradas').value || '',
+          fecha_limite: document.getElementById('fechaDeseada').value || '',
+          estado: 'Backlog',
+          prioridad_tecnica: prioridadTecnica
+        };
+
+        await enviarAGoogleSheets(ticketData);
+        currentTicketData = ticketData;
+        mostrarTicketPreview(ticketData);
+        showAlert('✅ Ticket creado exitosamente', 'success');
+        document.getElementById('ticketForm').reset();
+
+      } catch (error) {
+        showAlert('❌ Error al crear el ticket', 'error');
+      } finally {
+        loading.classList.remove('active');
+      }
+    });
+
+    // ==========================================
+    // TICKET PREVIEW
+    // ==========================================
+    function mostrarTicketPreview(ticket) {
+      const preview = document.getElementById('ticketPreview');
+      const ticketNumber = document.getElementById('ticketNumber');
+      const ticketBody = document.getElementById('ticketBody');
+
+      ticketNumber.textContent = `#${ticket.ticket_number} | ${ticket.fecha_solicitud}`;
+
+      ticketBody.innerHTML = `
+        <div class="ticket-field">
+          <div class="ticket-label">Solicitante:</div>
+          <div class="ticket-value">${ticket.nombre}</div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Prioridad:</div>
+          <div class="ticket-value">
+            <span class="priority-badge priority-${ticket.prioridad_tecnica}">${ticket.prioridad}</span>
+          </div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Tipo:</div>
+          <div class="ticket-value">${ticket.tipo_servicio}</div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Título:</div>
+          <div class="ticket-value"><strong>${ticket.pedido}</strong></div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Proceso Actual:</div>
+          <div class="ticket-value">${ticket.proceso_actual}</div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Resultado Esperado:</div>
+          <div class="ticket-value">${ticket.resultado_esperado}</div>
+        </div>
+        <div class="ticket-field">
+          <div class="ticket-label">Impacto:</div>
+          <div class="ticket-value">${ticket.impacto}</div>
+        </div>
+        ${ticket.horas_ahorradas ? `
+        <div class="ticket-field">
+          <div class="ticket-label">Horas Ahorradas:</div>
+          <div class="ticket-value">${ticket.horas_ahorradas} hrs/semana</div>
+        </div>
+        ` : ''}
+        ${ticket.fecha_limite ? `
+        <div class="ticket-field">
+          <div class="ticket-label">Fecha Límite:</div>
+          <div class="ticket-value">${ticket.fecha_limite}</div>
+        </div>
+        ` : ''}
+        <div class="ticket-field">
+          <div class="ticket-label">Estado:</div>
+          <div class="ticket-value">${ticket.estado}</div>
+        </div>
+        ${ticket.comentario !== 'Sin comentarios' ? `
+        <div class="ticket-field">
+          <div class="ticket-label">Comentarios:</div>
+          <div class="ticket-value">${ticket.comentario}</div>
+        </div>
+        ` : ''}
+      `;
+
+      preview.classList.add('show');
+      preview.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    document.getElementById('downloadPDF').addEventListener('click', () => {
+      if (!currentTicketData) return;
+      
+      const ticket = currentTicketData;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      let y = 20;
+      const lineHeight = 7;
+      const margin = 20;
+      const pageWidth = doc.internal.pageSize.width;
+
+      doc.setFontSize(22);
+      doc.setFont(undefined, 'bold');
+      doc.text('TICKET DE SOLICITUD', margin, y);
+      y += 10;
+
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(`#${ticket.ticket_number}`, margin, y);
+      doc.text(ticket.fecha_solicitud, pageWidth - margin - 50, y);
+      y += 15;
+
+      doc.setDrawColor(0);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+
+      const addField = (label, value, bold = false) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${label}:`, margin, y);
+        doc.setFont(undefined, bold ? 'bold' : 'normal');
+        const text = doc.splitTextToSize(value, pageWidth - margin * 2 - 60);
+        doc.text(text, margin + 60, y);
+        y += lineHeight * text.length + 3;
+      };
+
+      addField('Solicitante', ticket.nombre);
+      addField('Prioridad', ticket.prioridad, true);
+      addField('Tipo de Servicio', ticket.tipo_servicio);
+      addField('Título', ticket.pedido, true);
+      addField('Proceso Actual', ticket.proceso_actual);
+      addField('Resultado Esperado', ticket.resultado_esperado);
+      addField('Impacto', ticket.impacto);
+      if (ticket.horas_ahorradas) addField('Horas Ahorradas', `${ticket.horas_ahorradas} hrs/semana`);
+      if (ticket.fecha_limite) addField('Fecha Límite', ticket.fecha_limite);
+      addField('Estado', ticket.estado);
+      if (ticket.comentario !== 'Sin comentarios') addField('Comentarios', ticket.comentario);
+
+      doc.save(`Ticket-${ticket.ticket_number}.pdf`);
+    });
+
+    document.getElementById('closePreview').addEventListener('click', () => {
+      document.getElementById('ticketPreview').classList.remove('show');
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (confirm('¿Limpiar el formulario?')) {
+        document.getElementById('ticketForm').reset();
+      }
+    });
+
+    // ==========================================
+    // ADMIN PANEL
+    // ==========================================
+    async function cargarTicketsAdmin() {
+      const loading = document.getElementById('loadingAdmin');
+      loading.classList.add('active');
+
+      try {
+        const response = await fetch(GS_READ_URL);
+        const data = await response.json();
+        allTickets = data;
+        filteredTickets = data;
+        
+        actualizarEstadisticas();
+        llenarFiltroSolicitantes();
+        renderizarTickets();
+      } catch (error) {
+        document.getElementById('ticketsContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <h3>Error al cargar tickets</h3>
+          </div>
+        `;
+      } finally {
+        loading.classList.remove('active');
+      }
+    }
+
+    function actualizarEstadisticas() {
+      const total = allTickets.length;
+      const criticos = allTickets.filter(t => {
+        const prioridad = t['Prioridad '] || t['Prioridad'] || '';
+        return prioridad === 'CRÍTICA';
+      }).length;
+      const backlog = allTickets.filter(t => t.Estado === 'Backlog').length;
+      const horasConDatos = allTickets.filter(t => t['Horas Ahorradas'] && t['Horas Ahorradas'] !== '');
+      const avgHoras = horasConDatos.length > 0 
+        ? (horasConDatos.reduce((sum, t) => sum + parseFloat(t['Horas Ahorradas']), 0) / horasConDatos.length).toFixed(1)
+        : '0';
+
+      document.getElementById('totalTickets').textContent = total;
+      document.getElementById('criticalTickets').textContent = criticos;
+      document.getElementById('backlogTickets').textContent = backlog;
+      document.getElementById('avgHours').textContent = avgHoras;
+    }
+
+    function llenarFiltroSolicitantes() {
+      const solicitantes = [...new Set(allTickets.map(t => t['Nombre '] || t['Nombre'] || '').filter(Boolean))];
+      const select = document.getElementById('filterSolicitante');
+      select.innerHTML = '<option value="">Todos</option>';
+      solicitantes.forEach(sol => {
+        const option = document.createElement('option');
+        option.value = sol;
+        option.textContent = sol;
+        select.appendChild(option);
+      });
+    }
+
+    function getPriorityClass(priority) {
+      const map = { 'CRÍTICA': 5, 'ALTA': 4, 'MEDIA': 3, 'BAJA': 2, 'MUY BAJA': 1 };
+      return map[priority] || 3;
+    }
+
+    function renderizarTickets() {
+      const container = document.getElementById('ticketsContainer');
+
+      if (filteredTickets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>No hay tickets</h3>
+            <p>No se encontraron tickets con los filtros seleccionados</p>
+          </div>
+        `;
+        return;
+      }
+
+      const html = `
+<table>
+  <thead>
+    <tr>
+      <th>Solicitante</th>
+      <th>Prioridad</th>
+      <th>Urgencia</th>
+      <th>Fecha</th>
+      <th>Fecha Límite</th>
+      <th>Proceso Actual</th>
+      <th>Resultado Esperado</th>
+      <th>Impacto</th>
+      <th>Horas Ahorradas</th>
+      <th>Estado</th>
+      <th>Ticket</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${filteredTickets.map(ticket => {
+      // Limpieza de datos
+      const nombre = ticket['Nombre '] || ticket['Nombre'] || '-';
+      const prioridad = ticket['Prioridad '] || ticket['Prioridad'] || 'MEDIA';
+      const fechaLimite = ticket['Fecha Límite'] ? new Date(ticket['Fecha Límite']).toLocaleDateString('es-AR') : '-';
+      const urgencia = ticket['Urgencia Declarada'] || ticket['Urgencia'] || '-';
+
+      return `
+      <tr>
+        <td class="cell-wrap">${nombre}</td>
+        <td>
+          <span class="priority-badge priority-${getPriorityClass(prioridad)}">
+            ${prioridad}
+          </span>
+        </td>
+        <td class="urgencia-badge">${getUrgenciaEmoji(urgencia)} ${urgencia}</td>
+        <td class="cell-wrap">${ticket['Fecha Solicitud'] || '-'}</td>
+        <td>${fechaLimite}</td>
+        <td class="cell-wrap" title="${ticket['Proceso Actual'] || ''}">${ticket['Proceso Actual'] || '-'}</td>
+        <td class="cell-wrap" title="${ticket['Resultado Esperado'] || ''}">${ticket['Resultado Esperado'] || '-'}</td>
+        <td>${ticket.Impacto || '-'}</td>
+        <td>${ticket['Horas Ahorradas'] ? ticket['Horas Ahorradas'] + ' hrs' : '-'}</td>
+        <td><span class="status-badge">${ticket.Estado || 'Backlog'}</span></td>
+        <td class="ticket-number-cell">${ticket['Ticket Number'] || '-'}</td>
+      </tr>
+      `;
+    }).join('')}
+  </tbody>
+</table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function aplicarFiltros() {
+      const estado = document.getElementById('filterEstado').value;
+      const prioridad = document.getElementById('filterPrioridad').value;
+      const solicitante = document.getElementById('filterSolicitante').value;
+
+      filteredTickets = allTickets.filter(ticket => {
+        const ticketNombre = ticket['Nombre '] || ticket['Nombre'] || '';
+        const ticketPrioridad = ticket['Prioridad '] || ticket['Prioridad'] || '';
+        
+        const matchEstado = !estado || ticket.Estado === estado;
+        const matchPrioridad = !prioridad || ticketPrioridad === prioridad;
+        const matchSolicitante = !solicitante || ticketNombre === solicitante;
+        return matchEstado && matchPrioridad && matchSolicitante;
+      });
+
+      renderizarTickets();
+    }
+
+    // Auto-actualizar cada 30 segundos
+    setInterval(() => {
+      if (document.getElementById('modoAdmin').classList.contains('active')) {
+        cargarTicketsAdmin();
+      }
+    }, 30000);
+  </script>
+</body>
+</html>
